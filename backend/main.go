@@ -41,12 +41,19 @@ func main() {
 	}
 
 	router := gin.Default()
+
+	// Websocket group
+	chatHubs := routes.NewChatHub()
+	websockets := router.Group("/ws")
+	{
+		websockets.GET("/lobby/chat/:lobbyID", routes.AddChatHubContext(chatHubs), app.JoinMsgLobby)
+	}
+
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "pong",
 		})
 	})
-
 	router.POST("/register/:username", app.RegisterPlayer)
 	router.GET("/player/:username", app.GetPlayer)
 	router.GET("/playerstats/:id", app.GetPlayerStats)
