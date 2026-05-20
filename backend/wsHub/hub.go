@@ -2,9 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package routes
+package wsHub
 
-import "github.com/gin-gonic/gin"
+import (
+	"log"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+)
+
+type ClientBroadcast struct {
+	ClientID uuid.UUID
+	Message  []byte
+}
 
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
@@ -13,7 +23,7 @@ type Hub struct {
 	clients map[*Client]bool
 
 	// Inbound messages from the clients.
-	broadcast chan []byte
+	broadcast chan ClientBroadcast
 
 	// Register requests from the clients.
 	register chan *Client
@@ -23,17 +33,15 @@ type Hub struct {
 }
 
 func NewHub() *Hub {
-	hub := &Hub{
-		broadcast:  make(chan []byte),
+	return &Hub{
+		broadcast:  make(chan ClientBroadcast),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
 	}
-	go hub.Run()
-	return hub
 }
 
-func (h *Hub) Run() {
+func (h *Hub) RunManyToMany(cleanUpFunc func()) {
 	for {
 		select {
 		case client := <-h.register:
@@ -43,10 +51,14 @@ func (h *Hub) Run() {
 				delete(h.clients, client)
 				close(client.send)
 			}
-		case message := <-h.broadcast:
+			if len(h.clients) == 0 {
+				cleanUpFunc()
+				return
+			}
+		case broadcast := <-h.broadcast:
 			for client := range h.clients {
 				select {
-				case client.send <- message:
+				case client.send <- broadcast.Message:
 				default:
 					close(client.send)
 					delete(h.clients, client)
@@ -56,9 +68,14 @@ func (h *Hub) Run() {
 	}
 }
 
-func AddHubContext(h *Hub) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Set("hub", h)
-		c.Next()
+func JoinWsHubLobby(c *gin.Context) {
+	hub := c.MustGet("hub").(*Hub)
+
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Println(err)
+		return
 	}
+	client := NewClient(hub, conn)
+	hub.register <- client
 }

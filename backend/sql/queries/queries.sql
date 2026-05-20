@@ -45,3 +45,13 @@ SELECT * FROM lobbies
 WHERE status = 'WAITING' OR status = 'ACTIVE'
 LIMIT $1 OFFSET $2;
 
+-- name: GetGameState :one
+SELECT * FROM games
+WHERE id = $1
+LIMIT 1;
+
+-- name: GetPlayerGameState :one
+SELECT * FROM player_game_state
+WHERE game_id = $1 AND player_id = $2
+LIMIT 1;
+

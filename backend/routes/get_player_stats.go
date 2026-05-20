@@ -7,18 +7,19 @@ import (
 	"github.com/google/uuid"
 )
 
-var player struct {
+type GetPlayerStatsParams struct {
 	ID string `uri:"id" binding:"required,uuid"`
 }
 
 func (app *App) GetPlayerStats(c *gin.Context) {
-	if err := c.ShouldBindUri(&player); err != nil {
+	var params GetPlayerStatsParams
+	if err := c.ShouldBindUri(&params); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
-	playerStats, err := app.DB.GetPlayerStats(app.Ctx, uuid.MustParse(player.ID))
+	playerStats, err := app.DB.GetPlayerStats(app.Ctx, uuid.MustParse(params.ID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),

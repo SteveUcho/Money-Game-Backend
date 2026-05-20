@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"steveucho.com/packages/backend/gen/sqlQueries"
 	"steveucho.com/packages/backend/routes"
+	"steveucho.com/packages/backend/wsHub"
 )
 
 func main() {
@@ -43,25 +44,35 @@ func main() {
 	router := gin.Default()
 
 	// Websocket group
-	chatHubs := routes.NewMasterHub()
-	gameHubs := routes.NewMasterHub()
+	chatHubs := wsHub.NewMasterHub()
+	gameHubs := wsHub.NewMasterHub()
 	websockets := router.Group("/ws")
 	{
-		websockets.GET("/lobby/chat/:hubID", routes.AddMasterHubContext(chatHubs), app.JoinWsHubLobby)
-		websockets.GET("/game/events/:hubID", routes.AddMasterHubContext(gameHubs), app.JoinWsHubLobby)
+		websockets.GET("/lobby/chat/:hubID", wsHub.AddMasterHubContext(chatHubs), wsHub.JoinWsHubLobby)
+		websockets.GET("/game/events/:hubID", wsHub.AddMasterHubContext(gameHubs), wsHub.JoinWsHubLobby)
 	}
 
+	router.POST("/register/:username", app.RegisterPlayer)
+	player := router.Group("/player")
+	{
+		player.GET("/:username", app.GetPlayer)
+		player.GET("/stats/:id", app.GetPlayerStats)
+		player.GET("/activegame/:id", app.GetPlayerActiveGame)
+	}
+	lobby := router.Group("/lobby")
+	{
+		lobby.POST("/create/:name/:buyIn/:maxPlayers", app.CreateLobby)
+		lobby.GET("/available/:limit/:offset", app.GetOpenGames)
+	}
+	game := router.Group("/game")
+	{
+		game.GET("/state/:gameID", app.GetGameState)
+	}
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "pong",
 		})
 	})
-	router.POST("/register/:username", app.RegisterPlayer)
-	router.GET("/player/:username", app.GetPlayer)
-	router.GET("/playerstats/:id", app.GetPlayerStats)
-	router.GET("/playeractivegame/:id", app.GetPlayerActiveGame)
-	router.POST("/create/lobby/:name/:buyIn/:maxPlayers", app.CreateLobby)
-	router.GET("/availablegames/:limit/:offset", app.GetOpenGames)
 
 	srv := &http.Server{
 		Addr:              ":8080",

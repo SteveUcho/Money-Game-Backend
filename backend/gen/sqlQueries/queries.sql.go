@@ -73,6 +73,26 @@ func (q *Queries) CreatePlayer(ctx context.Context, username string) (uuid.UUID,
 	return player_id, err
 }
 
+const getGameState = `-- name: GetGameState :one
+SELECT id, lobby_id, name, current_price, current_quarter, current_turn FROM games
+WHERE id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetGameState(ctx context.Context, id uuid.UUID) (Game, error) {
+	row := q.db.QueryRow(ctx, getGameState, id)
+	var i Game
+	err := row.Scan(
+		&i.ID,
+		&i.LobbyID,
+		&i.Name,
+		&i.CurrentPrice,
+		&i.CurrentQuarter,
+		&i.CurrentTurn,
+	)
+	return i, err
+}
+
 const getOpenLobbies = `-- name: GetOpenLobbies :many
 SELECT id, name, ticker, owner_id, status, buy_in, max_players, current_quarter, current_turn, created_at, started_at, ended_at FROM lobbies
 WHERE status = 'WAITING' OR status = 'ACTIVE'
@@ -167,6 +187,29 @@ func (q *Queries) GetPlayerActiveGame(ctx context.Context, id uuid.UUID) (GetPla
 		&i.CurrentPrice,
 		&i.CurrentQuarter,
 		&i.CurrentTurn,
+	)
+	return i, err
+}
+
+const getPlayerGameState = `-- name: GetPlayerGameState :one
+SELECT game_id, player_id, starting_cash, current_cash FROM player_game_state
+WHERE game_id = $1 AND player_id = $2
+LIMIT 1
+`
+
+type GetPlayerGameStateParams struct {
+	GameID   uuid.UUID
+	PlayerID uuid.UUID
+}
+
+func (q *Queries) GetPlayerGameState(ctx context.Context, arg GetPlayerGameStateParams) (PlayerGameState, error) {
+	row := q.db.QueryRow(ctx, getPlayerGameState, arg.GameID, arg.PlayerID)
+	var i PlayerGameState
+	err := row.Scan(
+		&i.GameID,
+		&i.PlayerID,
+		&i.StartingCash,
+		&i.CurrentCash,
 	)
 	return i, err
 }

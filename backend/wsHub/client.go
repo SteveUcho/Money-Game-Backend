@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package routes
+package wsHub
 
 import (
 	"bytes"
 	"log"
-	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -32,17 +32,10 @@ var (
 	space   = []byte{' '}
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
-
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
+	ID uuid.UUID
+
 	hub *Hub
 
 	// The websocket connection.
@@ -52,16 +45,29 @@ type Client struct {
 	send chan []byte
 }
 
+func NewClient(hub *Hub, conn *websocket.Conn) *Client {
+	client := &Client{
+		ID:   uuid.New(),
+		hub:  hub,
+		conn: conn,
+		send: make(chan []byte, 256),
+	}
+	// Allow collection of memory referenced by the caller by doing all work in
+	// new goroutines.
+	go client.writePump()
+	go client.readPump()
+	return client
+}
+
 // readPump pumps messages from the websocket connection to the hub.
 //
 // The application runs readPump in a per-connection goroutine. The application
 // ensures that there is at most one reader on a connection by executing all
 // reads from this goroutine.
-func (c *Client) readPump(cleanUp func(*Client)) {
+func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
 		c.conn.Close()
-		cleanUp(c)
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -74,8 +80,11 @@ func (c *Client) readPump(cleanUp func(*Client)) {
 			}
 			break
 		}
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		c.hub.broadcast <- message
+		message = bytes.TrimSpace(bytes.ReplaceAll(message, newline, space))
+		c.hub.broadcast <- ClientBroadcast{
+			ClientID: c.ID,
+			Message:  message,
+		}
 	}
 }
 

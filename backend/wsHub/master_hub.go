@@ -1,4 +1,4 @@
-package routes
+package wsHub
 
 import (
 	"net/http"
@@ -7,8 +7,8 @@ import (
 )
 
 type GetHubRequest struct {
-	LobbyID string
-	Res     chan *Hub
+	HubID string
+	Res   chan *Hub
 }
 
 // ChatHub maintains the set of chat hubs
@@ -40,45 +40,44 @@ func NewMasterHub() *MasterHub {
 func (h *MasterHub) Run() {
 	for {
 		select {
-		case lobbyID := <-h.register:
-			if _, ok := h.hubs[lobbyID]; !ok {
-				h.hubs[lobbyID] = NewHub()
+		case hubID := <-h.register:
+			if _, ok := h.hubs[hubID]; !ok {
+				hub := NewHub()
+				go hub.RunManyToMany(cleanUpHub(h, hubID))
+				h.hubs[hubID] = hub
 			}
-		case lobbyID := <-h.unregister:
-			delete(h.hubs, lobbyID)
+		case hubID := <-h.unregister:
+			delete(h.hubs, hubID)
 		case req := <-h.getHub:
-			if hub, ok := h.hubs[req.LobbyID]; ok {
+			if hub, ok := h.hubs[req.HubID]; ok {
 				req.Res <- hub
 			}
 		}
 	}
 }
 
-type wsMasterHubRequest struct {
+func cleanUpHub(masterHub *MasterHub, hubID string) func() {
+	return func() {
+		masterHub.unregister <- hubID
+	}
+}
+
+type wsHubRequest struct {
 	HubID string `uri:"hubID" binding:"required"`
 }
 
 func AddMasterHubContext(masterHub *MasterHub) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req wsMasterHubRequest
+		var req wsHubRequest
 		if err := c.ShouldBindUri(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		masterHub.register <- req.HubID
 		reqChan := make(chan *Hub)
-		masterHub.getHub <- GetHubRequest{LobbyID: req.HubID, Res: reqChan}
+		masterHub.getHub <- GetHubRequest{HubID: req.HubID, Res: reqChan}
 		hub := <-reqChan
 		c.Set("hub", hub)
-		c.Set("cleanUpHub", cleanUpHub(masterHub, req.HubID))
 		c.Next()
-	}
-}
-
-func cleanUpHub(chatHubs *MasterHub, lobbyID string) func(*Client) {
-	return func(c *Client) {
-		if len(c.hub.clients) == 0 {
-			chatHubs.unregister <- lobbyID
-		}
 	}
 }

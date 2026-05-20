@@ -7,10 +7,20 @@ import (
 	"steveucho.com/packages/backend/gen/sqlQueries"
 )
 
+type GetPlayerParams struct {
+	Username string `uri:"username" binding:"required"`
+}
+
 func (app *App) GetPlayer(c *gin.Context) {
-	username := c.Param("username")
+	var params GetPlayerParams
+	if err := c.ShouldBindUri(&params); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
 	player, err := app.DB.GetPlayer(app.Ctx, sqlQueries.GetPlayerParams{
-		Username: username,
+		Username: params.Username,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
