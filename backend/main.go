@@ -43,10 +43,12 @@ func main() {
 	router := gin.Default()
 
 	// Websocket group
-	chatHubs := routes.NewChatHub()
+	chatHubs := routes.NewMasterHub()
+	gameHubs := routes.NewMasterHub()
 	websockets := router.Group("/ws")
 	{
-		websockets.GET("/lobby/chat/:lobbyID", routes.AddChatHubContext(chatHubs), app.JoinMsgLobby)
+		websockets.GET("/lobby/chat/:hubID", routes.AddMasterHubContext(chatHubs), app.JoinWsHubLobby)
+		websockets.GET("/game/events/:hubID", routes.AddMasterHubContext(gameHubs), app.JoinWsHubLobby)
 	}
 
 	router.GET("/ping", func(c *gin.Context) {
@@ -58,7 +60,7 @@ func main() {
 	router.GET("/player/:username", app.GetPlayer)
 	router.GET("/playerstats/:id", app.GetPlayerStats)
 	router.GET("/playeractivegame/:id", app.GetPlayerActiveGame)
-	router.POST("/creategame/:name/:buyIn/:maxPlayers", app.CreateLobby)
+	router.POST("/create/lobby/:name/:buyIn/:maxPlayers", app.CreateLobby)
 	router.GET("/availablegames/:limit/:offset", app.GetOpenGames)
 
 	srv := &http.Server{
