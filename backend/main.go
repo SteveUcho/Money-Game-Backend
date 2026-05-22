@@ -24,7 +24,7 @@ func main() {
 	if err != nil {
 		panic("Error loading .env file")
 	}
-	dbString := os.Getenv("GOOSE_DBSTRING")
+	dbString := os.Getenv("DBSTRING")
 
 	// Create context that listens for the interrupt signal from the OS.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
