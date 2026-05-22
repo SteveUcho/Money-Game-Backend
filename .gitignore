@@ -24,6 +24,9 @@ profile.cov
 go.work
 go.work.sum
 
+# Binary files
+bin/
+
 # env file
 .env
 
