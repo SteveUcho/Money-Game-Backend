@@ -45,6 +45,8 @@ services:
         target: /etc/config/kratos
     networks:
       - kratos-net
+    depends_on:
+      - kratos-db
   kratos:
     depends_on:
       - kratos-migrate

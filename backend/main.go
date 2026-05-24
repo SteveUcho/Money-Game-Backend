@@ -19,12 +19,13 @@ import (
 )
 
 func main() {
-	// Load .env file
-	err := godotenv.Load()
-	if err != nil {
-		panic("Error loading .env file")
+	dbString, exists := os.LookupEnv("DBSTRING")
+	if !exists {
+		err := godotenv.Load()
+		if err != nil {
+			panic("Error loading .env file")
+		}
 	}
-	dbString := os.Getenv("DBSTRING")
 
 	// Create context that listens for the interrupt signal from the OS.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
