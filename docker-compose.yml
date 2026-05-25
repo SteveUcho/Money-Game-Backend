@@ -1,4 +1,16 @@
 services:
+  nginx:
+    image: chainguard/nginx:latest
+    volumes:
+      - ./nginx:/etc/nginx/conf.d:ro
+    ports:
+      - "80:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # Adds the magic hostname
+    depends_on:
+      - kratos
+    networks:
+      - kratos-net
   game-backend:
     build:
       context: ./backend
