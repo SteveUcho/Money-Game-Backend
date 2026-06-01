@@ -9,8 +9,8 @@ SELECT id FROM inserted_player
 RETURNING player_id;
 
 -- name: GetPlayer :one
-SELECT id, username FROM players
-WHERE username = $1 OR id = $2
+SELECT id, username, ory_id FROM players
+WHERE ory_id = $1 OR id = $2
 LIMIT 1;
 
 -- name: GetPlayerStats :one

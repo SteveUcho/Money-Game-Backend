@@ -7,6 +7,7 @@ CREATE TYPE game_status AS ENUM (
 
 CREATE TABLE players (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ory_id TEXT UNIQUE NOT NULL,
     username TEXT UNIQUE NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
