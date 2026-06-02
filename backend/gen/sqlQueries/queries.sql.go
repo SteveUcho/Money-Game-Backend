@@ -138,25 +138,26 @@ func (q *Queries) GetOpenLobbies(ctx context.Context, arg GetOpenLobbiesParams) 
 }
 
 const getPlayer = `-- name: GetPlayer :one
-SELECT id, username FROM players
-WHERE username = $1 OR id = $2
+SELECT id, username, ory_id FROM players
+WHERE ory_id = $1 OR id = $2
 LIMIT 1
 `
 
 type GetPlayerParams struct {
-	Username string
-	ID       uuid.UUID
+	OryID string
+	ID    uuid.UUID
 }
 
 type GetPlayerRow struct {
 	ID       uuid.UUID
 	Username string
+	OryID    string
 }
 
 func (q *Queries) GetPlayer(ctx context.Context, arg GetPlayerParams) (GetPlayerRow, error) {
-	row := q.db.QueryRow(ctx, getPlayer, arg.Username, arg.ID)
+	row := q.db.QueryRow(ctx, getPlayer, arg.OryID, arg.ID)
 	var i GetPlayerRow
-	err := row.Scan(&i.ID, &i.Username)
+	err := row.Scan(&i.ID, &i.Username, &i.OryID)
 	return i, err
 }
 

@@ -245,6 +245,7 @@ type PlayedEventCard struct {
 
 type Player struct {
 	ID        uuid.UUID
+	OryID     string
 	Username  string
 	CreatedAt pgtype.Timestamp
 }
