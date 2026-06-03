@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	ory "github.com/ory/kratos-client-go"
@@ -15,7 +16,7 @@ func NewMiddleware() *kratosMiddleware {
 	configuration := ory.NewConfiguration()
 	configuration.Servers = []ory.ServerConfiguration{
 		{
-			URL: "http://127.0.0.1:4434", // Kratos Admin API
+			URL: os.Getenv("KRATOS_URL"), // Kratos Admin API
 		},
 	}
 	return &kratosMiddleware{

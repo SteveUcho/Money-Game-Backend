@@ -43,6 +43,7 @@ func main() {
 	}
 
 	router := gin.Default()
+	kratos := NewMiddleware()
 
 	// Websocket group
 	chatHubs := wsHub.NewMasterHub()
@@ -56,7 +57,7 @@ func main() {
 	router.POST("/register/:username", app.RegisterPlayer)
 	player := router.Group("/player")
 	{
-		player.GET("/:username", app.GetPlayer)
+		player.GET("/:username", kratos.AuthMiddleware(), app.GetPlayer)
 		player.GET("/stats/:id", app.GetPlayerStats)
 		player.GET("/activegame/:id", app.GetPlayerActiveGame)
 	}
