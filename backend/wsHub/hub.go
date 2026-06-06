@@ -9,11 +9,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	ory "github.com/ory/kratos-client-go"
 )
 
 type ClientBroadcast struct {
-	ClientID uuid.UUID
-	Message  []byte
+	ClientID  string
+	Username  string
+	MessageID uuid.UUID
+	Message   []byte
 }
 
 // Hub maintains the set of active clients and broadcasts messages to the
@@ -58,7 +61,7 @@ func (h *Hub) RunManyToMany(cleanUpFunc func()) {
 		case broadcast := <-h.broadcast:
 			for client := range h.clients {
 				select {
-				case client.send <- broadcast.Message:
+				case client.send <- broadcast:
 				default:
 					close(client.send)
 					delete(h.clients, client)
@@ -70,12 +73,13 @@ func (h *Hub) RunManyToMany(cleanUpFunc func()) {
 
 func JoinWsHubLobby(c *gin.Context) {
 	hub := c.MustGet("hub").(*Hub)
+	user := c.MustGet("user").(*ory.Session)
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	client := NewClient(hub, conn)
+	client := NewClient(user.Identity.Id, user.Identity.Traits.(map[string]any)["name"].(map[string]any)["first"].(string), hub, conn)
 	hub.register <- client
 }

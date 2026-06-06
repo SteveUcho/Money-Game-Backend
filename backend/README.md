@@ -1,5 +1,10 @@
 # Code gen with sqlc and goose
 
+To run the server:
+```bash
+go run .
+```
+
 ## Setup
 
 Install goose on macOS
@@ -13,8 +18,6 @@ Set environment variables in .env:
 - `GOOSE_DRIVER`
 - `GOOSE_DBSTRING`
 - `GOOSE_MIGRATION_DIR`
-
-- for use with CockroachDB use `postgres` driver
 
 example no env vars:
 ```bash

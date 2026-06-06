@@ -6,6 +6,7 @@ package wsHub
 
 import (
 	"bytes"
+	"encoding/json"
 	"log"
 	"time"
 
@@ -34,23 +35,24 @@ var (
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
-	ID uuid.UUID
-
-	hub *Hub
+	ID       string
+	username string
+	hub      *Hub
 
 	// The websocket connection.
 	conn *websocket.Conn
 
 	// Buffered channel of outbound messages.
-	send chan []byte
+	send chan ClientBroadcast
 }
 
-func NewClient(hub *Hub, conn *websocket.Conn) *Client {
+func NewClient(id string, username string, hub *Hub, conn *websocket.Conn) *Client {
 	client := &Client{
-		ID:   uuid.New(),
-		hub:  hub,
-		conn: conn,
-		send: make(chan []byte, 256),
+		ID:       id,
+		username: username,
+		hub:      hub,
+		conn:     conn,
+		send:     make(chan ClientBroadcast, 256),
 	}
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
@@ -82,8 +84,10 @@ func (c *Client) readPump() {
 		}
 		message = bytes.TrimSpace(bytes.ReplaceAll(message, newline, space))
 		c.hub.broadcast <- ClientBroadcast{
-			ClientID: c.ID,
-			Message:  message,
+			ClientID:  c.ID,
+			MessageID: uuid.New(),
+			Username:  c.username,
+			Message:   message,
 		}
 	}
 }
@@ -101,7 +105,7 @@ func (c *Client) writePump() {
 	}()
 	for {
 		select {
-		case message, ok := <-c.send:
+		case broadcast, ok := <-c.send:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
@@ -113,13 +117,46 @@ func (c *Client) writePump() {
 			if err != nil {
 				return
 			}
+			var msg map[string]any
+			if err := json.Unmarshal(broadcast.Message, &msg); err != nil {
+				log.Printf("error unmarshalling message: %v", err)
+				return
+			}
+			test := map[string]any{
+				"clientId":  broadcast.ClientID,
+				"messageId": broadcast.MessageID.String(),
+				"username":  broadcast.Username,
+				"message":   msg,
+			}
+			message, err := json.Marshal(test)
+			if err != nil {
+				log.Printf("error marshalling to JSON: %v", err)
+				return
+			}
 			w.Write(message)
 
 			// Add queued chat messages to the current websocket message.
 			n := len(c.send)
-			for i := 0; i < n; i++ {
+			for range n {
 				w.Write(newline)
-				w.Write(<-c.send)
+				broadcast := <-c.send
+				var msg map[string]any
+				if err := json.Unmarshal(broadcast.Message, &msg); err != nil {
+					log.Printf("error unmarshalling message: %v", err)
+					return
+				}
+				test := map[string]any{
+					"clientId":  broadcast.ClientID,
+					"messageId": broadcast.MessageID.String(),
+					"username":  broadcast.Username,
+					"message":   msg,
+				}
+				message, err := json.Marshal(test)
+				if err != nil {
+					log.Printf("error marshalling to JSON: %v", err)
+					return
+				}
+				w.Write(message)
 			}
 
 			if err := w.Close(); err != nil {

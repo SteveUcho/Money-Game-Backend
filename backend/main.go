@@ -19,13 +19,14 @@ import (
 )
 
 func main() {
-	dbString, exists := os.LookupEnv("DBSTRING")
+	_, exists := os.LookupEnv("DBSTRING")
 	if !exists {
 		err := godotenv.Load()
 		if err != nil {
 			panic("Error loading .env file")
 		}
 	}
+	dbString := os.Getenv("DBSTRING")
 
 	// Create context that listens for the interrupt signal from the OS.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -50,8 +51,8 @@ func main() {
 	gameHubs := wsHub.NewMasterHub()
 	websockets := router.Group("/ws")
 	{
-		websockets.GET("/lobby/chat/:hubID", wsHub.AddMasterHubContext(chatHubs), wsHub.JoinWsHubLobby)
-		websockets.GET("/game/events/:hubID", wsHub.AddMasterHubContext(gameHubs), wsHub.JoinWsHubLobby)
+		websockets.GET("/lobby/chat/:hubID", kratos.AuthMiddleware(), wsHub.AddMasterHubContext(chatHubs), wsHub.JoinWsHubLobby)
+		websockets.GET("/game/events/:hubID", kratos.AuthMiddleware(), wsHub.AddMasterHubContext(gameHubs), wsHub.JoinWsHubLobby)
 	}
 
 	router.POST("/register/:username", app.RegisterPlayer)
