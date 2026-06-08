@@ -51,8 +51,8 @@ func main() {
 	gameHubs := wsHub.NewMasterHub()
 	websockets := router.Group("/ws")
 	{
-		websockets.GET("/lobby/chat/:hubID", kratos.AuthMiddleware(), wsHub.AddMasterHubContext(chatHubs), wsHub.JoinWsHubLobby)
-		websockets.GET("/game/events/:hubID", kratos.AuthMiddleware(), wsHub.AddMasterHubContext(gameHubs), wsHub.JoinWsHubLobby)
+		websockets.GET("/chat-lobby/:hubID", kratos.AuthMiddleware(), wsHub.AddMasterHubContext(chatHubs), wsHub.JoinWsHubLobby)
+		websockets.GET("/game-events/:hubID", kratos.AuthMiddleware(), wsHub.AddMasterHubContext(gameHubs), wsHub.JoinWsHubLobby)
 	}
 
 	router.POST("/register/:username", app.RegisterPlayer)
@@ -70,6 +70,7 @@ func main() {
 	game := router.Group("/game")
 	{
 		game.GET("/state/:gameID", app.GetGameState)
+		game.GET("/stock-chart-points/:gameID", kratos.AuthMiddleware(), app.GetStockChartPoints)
 	}
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{

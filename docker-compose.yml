@@ -9,8 +9,9 @@ services:
       - "host.docker.internal:host-gateway" # Adds the magic hostname
     depends_on:
       - kratos
+      - game-backend
     networks:
-      - kratos-net
+      - intra-net
   game-backend:
     build:
       context: ./backend
@@ -19,8 +20,12 @@ services:
       - "8080:8080"
     environment:
       - DBSTRING=${DBSTRING}
+      - KRATOS_URL=${KRATOS_URL}
     depends_on:
       - game-db
+    networks:
+      - intra-net
+      - game-net
   game-db:
     image: postgres:alpine
     restart: unless-stopped
@@ -32,6 +37,8 @@ services:
       - "5433:5432"
     volumes:
       - game_postgres_data:/var/lib/postgresql
+    networks:
+      - game-net
   kratos-db:
     image: postgres:alpine
     restart: unless-stopped
@@ -76,9 +83,12 @@ services:
         source: ./kratos
         target: /etc/config/kratos
     networks:
+      - intra-net
       - kratos-net
 volumes:
   game_postgres_data:
   kratos_postgres_data:
 networks:
+  intra-net:
   kratos-net:
+  game-net:
