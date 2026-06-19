@@ -13,9 +13,10 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/jackc/pgx/v5"
+	"steveucho.com/packages/backend/gameSystem"
 	"steveucho.com/packages/backend/gen/sqlQueries"
+	"steveucho.com/packages/backend/middleware"
 	"steveucho.com/packages/backend/routes"
-	"steveucho.com/packages/backend/wsHub"
 )
 
 func main() {
@@ -31,6 +32,7 @@ func main() {
 	// Create context that listens for the interrupt signal from the OS.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
 	conn, err := pgx.Connect(ctx, dbString)
 	if err != nil {
 		panic(err)
@@ -38,39 +40,45 @@ func main() {
 	defer conn.Close(ctx)
 
 	queries := sqlQueries.New(conn)
-	app := &routes.App{
+	routes := &routes.App{
 		DB:  queries,
 		Ctx: ctx,
 	}
 
 	router := gin.Default()
-	kratos := NewMiddleware()
+	kratos := middleware.NewAuthMiddleware()
 
 	// Websocket group
-	chatHubs := wsHub.NewMasterHub()
-	gameHubs := wsHub.NewMasterHub()
+	gameOrchestrator := gameSystem.NewGameOrchestrator()
+
 	websockets := router.Group("/ws")
+	websockets.Use(kratos.AuthMiddleware())
 	{
-		websockets.GET("/chat-lobby/:hubID", kratos.AuthMiddleware(), wsHub.AddMasterHubContext(chatHubs), wsHub.JoinWsHubLobby)
-		websockets.GET("/game-events/:hubID", kratos.AuthMiddleware(), wsHub.AddMasterHubContext(gameHubs), wsHub.JoinWsHubLobby)
+		websockets.GET("/lobby/:lobbyID", middleware.GetLobbyContext(gameOrchestrator), routes.JoinWsLobby)
 	}
 
-	router.POST("/register/:username", app.RegisterPlayer)
+	router.POST("/register/:username", routes.RegisterPlayer)
 	player := router.Group("/player")
+	player.Use(kratos.AuthMiddleware())
 	{
-		player.GET("/:username", kratos.AuthMiddleware(), app.GetPlayer)
-		player.GET("/stats/:id", app.GetPlayerStats)
-		player.GET("/activegame/:id", app.GetPlayerActiveGame)
+		player.GET("/:username", routes.GetPlayer)
+		player.GET("/stats/:id", routes.GetPlayerStats)
+		player.GET("/activegame/:id", routes.GetPlayerActiveGame)
 	}
-	lobby := router.Group("/lobby")
+	lobbies := router.Group("/lobbies")
+	lobbies.Use(kratos.AuthMiddleware())
 	{
-		lobby.POST("/create/:name/:buyIn/:maxPlayers", app.CreateLobby)
-		lobby.GET("/available/:limit/:offset", app.GetOpenGames)
+		lobbies.GET("/all", gameOrchestrator.GetLobbies())
+		lobbies.GET("/available/:limit/:offset", routes.GetOpenGames)
+		lobbies.POST("/create", gameOrchestrator.CreateLobby())
+		lobbies.POST("/create/:name/:buyIn/:maxPlayers", routes.CreateLobby)
 	}
 	game := router.Group("/game")
+	game.Use(kratos.AuthMiddleware(), gameOrchestrator.GetGameContext())
 	{
-		game.GET("/state/:gameID", app.GetGameState)
-		game.GET("/stock-chart-points/:gameID", kratos.AuthMiddleware(), app.GetStockChartPoints)
+		game.GET("/state/:gameID", routes.GetGameState)
+		game.GET("/stock-order-book/:gameID", routes.GetGameStockOrderBook)
+		game.GET("/stock-chart-points/:gameID", routes.GetStockChartPoints)
 	}
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{

@@ -11,7 +11,12 @@
 1. set values in .env file following template .env.template
 2. run docker compose up
 
+### Run dev profile
 ```bash
-docker compose up
+docker compose --profile dev up
 ```
 
+### Run prod profile
+```bash
+docker compose --profile prod up
+```

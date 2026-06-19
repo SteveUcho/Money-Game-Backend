@@ -1,7 +1,9 @@
 package gameSystem
 
 import (
+	"maps"
 	"math/rand/v2"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,6 +11,7 @@ import (
 )
 
 type GameState struct {
+	ID             uuid.UUID
 	Symbol         string
 	ShareFloat     int
 	CurrentPrice   int
@@ -19,14 +22,16 @@ type GameState struct {
 	PlayerCharts   map[uuid.UUID]*PlayerChartData
 	PlayerHoldings map[uuid.UUID]*PlayerHolding
 
-	StockOrderBook  map[uuid.UUID]*StockSellOrderEntry
-	OptionOrderBook map[uuid.UUID]*OptionSellOrderEntry
+	StockOrderBook  map[uuid.UUID]*StockSellOrderEntry  // order id -> order
+	OptionOrderBook map[uuid.UUID]*OptionSellOrderEntry // order id -> order
 
 	BroadcastHub *wsHub.Hub
+	lobby        *Lobby
 }
 
-func NewGame(broadcastHub *wsHub.Hub, symbol string, players []uuid.UUID) *GameState {
+func NewGame(ID uuid.UUID, symbol string, players []uuid.UUID) *GameState {
 	return &GameState{
+		ID:             ID,
 		Symbol:         symbol,
 		ShareFloat:     1000,
 		CurrentPrice:   50,
@@ -39,8 +44,6 @@ func NewGame(broadcastHub *wsHub.Hub, symbol string, players []uuid.UUID) *GameS
 
 		StockOrderBook:  make(map[uuid.UUID]*StockSellOrderEntry),
 		OptionOrderBook: make(map[uuid.UUID]*OptionSellOrderEntry),
-
-		BroadcastHub: broadcastHub,
 	}
 }
 
@@ -71,19 +74,43 @@ func (g *GameState) validateStockSellOrder(playerID uuid.UUID, order []StockSell
 	return totalQuantity <= g.PlayerHoldings[playerID].TotalSharesHeld
 }
 
-func (g *GameState) validateOptionSellOrder(playerID uuid.UUID, order *OptionSellOrderEntry) bool {
-	// TODO: Implement option sell order validation
-	return true
-}
-
 func (g *GameState) validateStockBuyOrder(playerID uuid.UUID, orderID uuid.UUID) bool {
 	// TODO: Implement stock buy order validation
 	return true
 }
 
-func (g *GameState) validateOptionBuyOrder(playerID uuid.UUID, orderID uuid.UUID) bool {
-	// TODO: Implement option buy order validation
-	return true
+func (g *GameState) resolveStockSellOrder(orderID uuid.UUID) {
+	order, ok := g.StockOrderBook[orderID]
+	if !ok {
+		return
+	}
+
+	newStocks := slices.Clone(g.PlayerHoldings[order.Player].Stocks)
+	slices.SortFunc(g.PlayerHoldings[order.Player].Stocks, func(a, b StockOrderFill) int {
+		return a.Price - b.Price
+	})
+	remainingQuantity := order.Quantity
+	deleteIndexes := make([]int, len(newStocks))
+	index := 0
+	for remainingQuantity > 0 {
+		stock := newStocks[index]
+		if stock.Quantity <= remainingQuantity {
+			deleteIndexes = append(deleteIndexes, index)
+		} else {
+			stock.Quantity -= remainingQuantity
+			newStocks[index] = stock
+		}
+		index++
+	}
+	index = 1
+	for _, delIndex := range deleteIndexes { // move all to be deleted stocks to the end of the slice
+		newStocks[delIndex] = newStocks[len(newStocks)-index]
+		index++
+	}
+	newStocks = slices.Delete(newStocks, len(newStocks)-len(deleteIndexes), len(newStocks)) // delete the stocks at the end of the slice
+
+	g.PlayerHoldings[order.Player].Stocks = newStocks
+	g.PlayerHoldings[order.Player].TotalSharesHeld -= order.Quantity
 }
 
 func (g *GameState) SubmitTurn(submission TurnSubmission) bool {
@@ -102,4 +129,13 @@ func (g *GameState) SubmitTurn(submission TurnSubmission) bool {
 	}
 
 	return true
+}
+
+func (g *GameState) GetStockOrderBook() []*StockSellOrderEntry {
+	return slices.Collect(maps.Values(g.StockOrderBook))
+}
+
+func (g *GameState) EndGame() {
+	g.lobby.orchestrator.unregisterGame <- g.ID
+	g.lobby.Game = nil
 }

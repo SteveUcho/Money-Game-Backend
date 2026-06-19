@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package wsHub
+package gameSystem
 
 import (
 	"bytes"
@@ -33,11 +33,18 @@ var (
 	space   = []byte{' '}
 )
 
+type ClientBroadcast struct {
+	ClientID  string
+	Username  string
+	MessageID uuid.UUID
+	Message   []byte
+}
+
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
 	ID       string
 	username string
-	hub      *Hub
+	lobby    *Lobby
 
 	// The websocket connection.
 	conn *websocket.Conn
@@ -46,11 +53,11 @@ type Client struct {
 	Send chan ClientBroadcast
 }
 
-func NewClient(id string, username string, hub *Hub, conn *websocket.Conn) *Client {
+func NewClient(id string, username string, lobby *Lobby, conn *websocket.Conn) *Client {
 	client := &Client{
 		ID:       id,
 		username: username,
-		hub:      hub,
+		lobby:    lobby,
 		conn:     conn,
 		Send:     make(chan ClientBroadcast, 256),
 	}
@@ -68,7 +75,7 @@ func NewClient(id string, username string, hub *Hub, conn *websocket.Conn) *Clie
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		c.hub.unregister <- c
+		c.lobby.Leave <- c
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -83,7 +90,7 @@ func (c *Client) readPump() {
 			break
 		}
 		message = bytes.TrimSpace(bytes.ReplaceAll(message, newline, space))
-		c.hub.broadcast <- ClientBroadcast{
+		c.lobby.Broadcast <- ClientBroadcast{
 			ClientID:  c.ID,
 			MessageID: uuid.New(),
 			Username:  c.username,

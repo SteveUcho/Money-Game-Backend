@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	ory "github.com/ory/kratos-client-go"
+	"steveucho.com/packages/backend/models"
 )
 
 type ClientBroadcast struct {
@@ -22,6 +22,9 @@ type ClientBroadcast struct {
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type Hub struct {
+	// Master hub that manages all hubs
+	master *MasterHub
+
 	// Registered clients.
 	clients map[*Client]bool
 
@@ -35,8 +38,9 @@ type Hub struct {
 	unregister chan *Client
 }
 
-func NewHub() *Hub {
+func NewHub(master *MasterHub) *Hub {
 	return &Hub{
+		master:     master,
 		broadcast:  make(chan ClientBroadcast),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
@@ -44,7 +48,7 @@ func NewHub() *Hub {
 	}
 }
 
-func (h *Hub) RunManyToMany(cleanUpFunc func()) {
+func (h *Hub) RunManyToMany(hubID uuid.UUID) {
 	for {
 		select {
 		case client := <-h.register:
@@ -52,18 +56,18 @@ func (h *Hub) RunManyToMany(cleanUpFunc func()) {
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
-				close(client.send)
+				close(client.Send)
 			}
 			if len(h.clients) == 0 {
-				cleanUpFunc()
+				h.master.Unregister <- hubID
 				return
 			}
 		case broadcast := <-h.broadcast:
 			for client := range h.clients {
 				select {
-				case client.send <- broadcast:
+				case client.Send <- broadcast:
 				default:
-					close(client.send)
+					close(client.Send)
 					delete(h.clients, client)
 				}
 			}
@@ -73,13 +77,13 @@ func (h *Hub) RunManyToMany(cleanUpFunc func()) {
 
 func JoinWsHubLobby(c *gin.Context) {
 	hub := c.MustGet("hub").(*Hub)
-	user := c.MustGet("user").(*ory.Session)
+	user := c.MustGet("user").(*models.User)
 
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	conn, err := Upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	client := NewClient(user.Identity.Id, user.Identity.Traits.(map[string]any)["name"].(map[string]any)["first"].(string), hub, conn)
+	client := NewClient(user.Session.Identity.Id, user.Traits.Name.First, hub, conn)
 	hub.register <- client
 }

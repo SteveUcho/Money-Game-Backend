@@ -5,6 +5,21 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Docker",
+            "type": "go",
+            "request": "attach",
+            "mode": "remote",
+            "substitutePath": [
+                {
+                    "from": "${workspaceFolder}/backend",
+                    "to": "/app"
+                }
+            ],
+            "remotePath": "/app",
+            "host": "localhost",
+            "port": 2345
+        },
+        {
             "name": "Launch Package",
             "type": "go",
             "request": "launch",

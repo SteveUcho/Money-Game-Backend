@@ -12,6 +12,23 @@ services:
       - game-backend
     networks:
       - intra-net
+    profiles:
+      - prod
+  nginx-dev:
+    image: chainguard/nginx:latest
+    volumes:
+      - ./nginx-dev:/etc/nginx/conf.d:ro
+    ports:
+      - "80:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # Adds the magic hostname
+    depends_on:
+      - kratos
+      - game-backend-dev
+    networks:
+      - intra-net
+    profiles:
+      - dev
   game-backend:
     build:
       context: ./backend
@@ -26,6 +43,32 @@ services:
     networks:
       - intra-net
       - game-net
+    profiles:
+      - prod
+  game-backend-dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    command: air
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8080:8080"
+      - "2345:2345"
+    environment:
+      - DBSTRING=${DBSTRING}
+      - KRATOS_URL=${KRATOS_URL}
+    security_opt:
+      - "seccomp:unconfined" # required for Delve to work
+    cap_add:
+      - SYS_PTRACE # required for Delve to work
+    depends_on:
+      - game-db
+    networks:
+      - intra-net
+      - game-net
+    profiles:
+      - dev
   game-db:
     image: postgres:alpine
     restart: unless-stopped

@@ -4,34 +4,35 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type GetHubRequest struct {
-	HubID string
+	HubID uuid.UUID
 	Res   chan *Hub
 }
 
 // ChatHub maintains the set of chat hubs
 type MasterHub struct {
 	// Registered clients.
-	hubs map[string]*Hub
+	hubs map[uuid.UUID]*Hub
 
 	// Register requests from the clients.
-	register chan string
+	Register chan uuid.UUID
 
 	// Unregister requests from clients.
-	unregister chan string
+	Unregister chan uuid.UUID
 
 	// request to get a hub
-	getHub chan GetHubRequest
+	GetHub chan GetHubRequest
 }
 
 func NewMasterHub() *MasterHub {
 	hub := &MasterHub{
-		hubs:       make(map[string]*Hub),
-		register:   make(chan string),
-		unregister: make(chan string),
-		getHub:     make(chan GetHubRequest),
+		hubs:       make(map[uuid.UUID]*Hub),
+		Register:   make(chan uuid.UUID),
+		Unregister: make(chan uuid.UUID),
+		GetHub:     make(chan GetHubRequest),
 	}
 	go hub.Run()
 	return hub
@@ -40,30 +41,26 @@ func NewMasterHub() *MasterHub {
 func (h *MasterHub) Run() {
 	for {
 		select {
-		case hubID := <-h.register:
+		case hubID := <-h.Register:
 			if _, ok := h.hubs[hubID]; !ok {
-				hub := NewHub()
-				go hub.RunManyToMany(cleanUpHub(h, hubID))
+				hub := NewHub(h)
+				go hub.RunManyToMany(hubID)
 				h.hubs[hubID] = hub
 			}
-		case hubID := <-h.unregister:
+		case hubID := <-h.Unregister:
 			delete(h.hubs, hubID)
-		case req := <-h.getHub:
+		case req := <-h.GetHub:
 			if hub, ok := h.hubs[req.HubID]; ok {
 				req.Res <- hub
+			} else {
+				req.Res <- nil
 			}
 		}
 	}
 }
 
-func cleanUpHub(masterHub *MasterHub, hubID string) func() {
-	return func() {
-		masterHub.unregister <- hubID
-	}
-}
-
 type wsHubRequest struct {
-	HubID string `uri:"hubID" binding:"required"`
+	HubID string `uri:"hubID" binding:"required,uuid"`
 }
 
 func AddMasterHubContext(masterHub *MasterHub) gin.HandlerFunc {
@@ -73,9 +70,19 @@ func AddMasterHubContext(masterHub *MasterHub) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		masterHub.register <- req.HubID
+		masterHub.Register <- uuid.MustParse(req.HubID)
+	}
+}
+
+func GetMasterHubContext(masterHub *MasterHub) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req wsHubRequest
+		if err := c.ShouldBindUri(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		reqChan := make(chan *Hub)
-		masterHub.getHub <- GetHubRequest{HubID: req.HubID, Res: reqChan}
+		masterHub.GetHub <- GetHubRequest{HubID: uuid.MustParse(req.HubID), Res: reqChan}
 		hub := <-reqChan
 		c.Set("hub", hub)
 		c.Next()

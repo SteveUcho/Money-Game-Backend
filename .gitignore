@@ -26,6 +26,7 @@ go.work.sum
 
 # Binary files
 bin/
+tmp/
 
 # env file
 .env
