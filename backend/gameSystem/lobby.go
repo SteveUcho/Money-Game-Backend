@@ -12,7 +12,7 @@ import (
 type Lobby struct {
 	ID         uuid.UUID
 	Title      string
-	ownerID    uuid.UUID
+	OwnerID    uuid.UUID
 	Owner      string
 	Symbol     string
 	Players    map[uuid.UUID]string
@@ -38,7 +38,7 @@ func NewLobby(lobbyID uuid.UUID, ownerID uuid.UUID, ownerUsername string, orches
 	theLobby := &Lobby{
 		ID:         lobbyID,
 		Title:      ownerUsername,
-		ownerID:    ownerID,
+		OwnerID:    ownerID,
 		Owner:      ownerUsername,
 		Symbol:     selectedTicker,
 		Players:    make(map[uuid.UUID]string),
