@@ -1,6 +1,7 @@
 package gameSystem
 
 import (
+	"encoding/json"
 	"maps"
 	"math/rand/v2"
 	"slices"
@@ -57,15 +58,9 @@ func (l *Lobby) Run() {
 	for {
 		select {
 		case client := <-l.Join:
-			l.Clients[client] = true
+			l.addPlayer(client)
 		case client := <-l.Leave:
-			if _, ok := l.Clients[client]; ok {
-				delete(l.Clients, client)
-				close(client.Send)
-			}
-			if len(l.Clients) == 0 {
-				l.closeLobby()
-			}
+			l.removePlayer(client)
 		case broadcast := <-l.Broadcast:
 			for client := range l.Clients {
 				select {
@@ -87,8 +82,62 @@ func (l *Lobby) StartGame(gameID uuid.UUID) *GameState {
 	return l.Game
 }
 
-func (l *Lobby) AddPlayer(playerID uuid.UUID, playerName string) {
-	l.Players[playerID] = playerName
+type SystemAction struct {
+	Action   string    `json:"action"`
+	PlayerID uuid.UUID `json:"playerId"`
+	Username string    `json:"username"`
+}
+
+func (l *Lobby) addPlayer(client *Client) {
+	l.Players[client.ID] = client.username
+	l.Clients[client] = true
+
+	playerJoinBroadcast := SystemAction{
+		Action:   "player_joined",
+		PlayerID: client.ID,
+		Username: client.username,
+	}
+	jsonData, err := json.Marshal(playerJoinBroadcast)
+	if err != nil {
+		return
+	}
+	go func() { // without goroutine, it will infinite block
+		l.Broadcast <- ClientBroadcast{
+			Type:     "system",
+			PlayerID: uuid.New(),
+			Username: "System",
+			Data:     jsonData,
+		}
+	}()
+}
+
+func (l *Lobby) removePlayer(client *Client) {
+	delete(l.Players, client.ID)
+	delete(l.Clients, client)
+
+	close(client.Send)
+
+	if len(l.Clients) == 0 {
+		l.closeLobby()
+	}
+
+	playerLeftBroadcast := SystemAction{
+		Action:   "player_left",
+		PlayerID: client.ID,
+		Username: client.username,
+	}
+	jsonData, err := json.Marshal(playerLeftBroadcast)
+	if err != nil {
+		return
+	}
+	go func() { // without goroutine, it will infinite block
+		l.Broadcast <- ClientBroadcast{
+			Type:     "system",
+			PlayerID: uuid.New(),
+			Username: "System",
+			Data:     jsonData,
+		}
+	}()
 }
 
 // TODO: close lobby when all players disconnect

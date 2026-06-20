@@ -34,15 +34,16 @@ var (
 )
 
 type ClientBroadcast struct {
-	ClientID  string
-	Username  string
+	Type      string
 	MessageID uuid.UUID
-	Message   []byte
+	PlayerID  uuid.UUID
+	Username  string
+	Data      []byte
 }
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
-	ID       string
+	ID       uuid.UUID
 	username string
 	lobby    *Lobby
 
@@ -53,7 +54,7 @@ type Client struct {
 	Send chan ClientBroadcast
 }
 
-func NewClient(id string, username string, lobby *Lobby, conn *websocket.Conn) *Client {
+func NewClient(id uuid.UUID, username string, lobby *Lobby, conn *websocket.Conn) *Client {
 	client := &Client{
 		ID:       id,
 		username: username,
@@ -91,10 +92,11 @@ func (c *Client) readPump() {
 		}
 		message = bytes.TrimSpace(bytes.ReplaceAll(message, newline, space))
 		c.lobby.Broadcast <- ClientBroadcast{
-			ClientID:  c.ID,
+			Type:      "chat",
 			MessageID: uuid.New(),
+			PlayerID:  c.ID,
 			Username:  c.username,
-			Message:   message,
+			Data:      message,
 		}
 	}
 }
@@ -125,15 +127,16 @@ func (c *Client) writePump() {
 				return
 			}
 			var msg map[string]any
-			if err := json.Unmarshal(broadcast.Message, &msg); err != nil {
+			if err := json.Unmarshal(broadcast.Data, &msg); err != nil {
 				log.Printf("error unmarshalling message: %v", err)
 				return
 			}
 			test := map[string]any{
-				"clientId":  broadcast.ClientID,
+				"type":      broadcast.Type,
+				"playerId":  broadcast.PlayerID,
 				"messageId": broadcast.MessageID.String(),
 				"username":  broadcast.Username,
-				"message":   msg,
+				"data":      msg,
 			}
 			message, err := json.Marshal(test)
 			if err != nil {
@@ -148,17 +151,18 @@ func (c *Client) writePump() {
 				w.Write(newline)
 				broadcast := <-c.Send
 				var msg map[string]any
-				if err := json.Unmarshal(broadcast.Message, &msg); err != nil {
+				if err := json.Unmarshal(broadcast.Data, &msg); err != nil {
 					log.Printf("error unmarshalling message: %v", err)
 					return
 				}
-				test := map[string]any{
-					"clientId":  broadcast.ClientID,
+				temp := map[string]any{
+					"type":      broadcast.Type,
+					"playerId":  broadcast.PlayerID,
 					"messageId": broadcast.MessageID.String(),
 					"username":  broadcast.Username,
-					"message":   msg,
+					"data":      msg,
 				}
-				message, err := json.Marshal(test)
+				message, err := json.Marshal(temp)
 				if err != nil {
 					log.Printf("error marshalling to JSON: %v", err)
 					return

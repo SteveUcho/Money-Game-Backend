@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"steveucho.com/packages/backend/gameSystem"
 	"steveucho.com/packages/backend/models"
 	"steveucho.com/packages/backend/wsHub"
@@ -23,6 +24,11 @@ func (app *App) JoinWsLobby(c *gin.Context) {
 		log.Println(err)
 		return
 	}
-	client := gameSystem.NewClient(user.Session.Identity.Id, user.Traits.Name.First, lobby, conn)
+	uID, err := uuid.Parse(user.Session.Identity.Id)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	client := gameSystem.NewClient(uID, user.Traits.Name.First, lobby, conn)
 	lobby.Join <- client
 }

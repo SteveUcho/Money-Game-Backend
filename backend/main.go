@@ -40,16 +40,17 @@ func main() {
 	defer conn.Close(ctx)
 
 	queries := sqlQueries.New(conn)
+	gameOrchestrator := gameSystem.NewGameOrchestrator()
 	routes := &routes.App{
-		DB:  queries,
-		Ctx: ctx,
+		DB:               queries,
+		Ctx:              ctx,
+		GameOrchestrator: gameOrchestrator,
 	}
 
 	router := gin.Default()
 	kratos := middleware.NewAuthMiddleware()
 
 	// Websocket group
-	gameOrchestrator := gameSystem.NewGameOrchestrator()
 
 	websockets := router.Group("/ws")
 	websockets.Use(kratos.AuthMiddleware())
@@ -72,6 +73,11 @@ func main() {
 		lobbies.GET("/available/:limit/:offset", routes.GetOpenGames)
 		lobbies.POST("/create", gameOrchestrator.CreateLobby())
 		lobbies.POST("/create/:name/:buyIn/:maxPlayers", routes.CreateLobby)
+	}
+	lobby := router.Group("/lobby")
+	lobby.Use(kratos.AuthMiddleware())
+	{
+		lobby.GET("/:lobbyID", routes.GetLobby)
 	}
 	game := router.Group("/game")
 	game.Use(kratos.AuthMiddleware(), gameOrchestrator.GetGameContext())
