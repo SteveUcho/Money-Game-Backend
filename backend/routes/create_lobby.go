@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"steveucho.com/packages/backend/gen/sqlQueries"
+	"steveucho.com/packages/backend/models"
 )
 
 type CreateLobbyParams struct {
@@ -38,4 +39,10 @@ func (app *App) CreateLobby(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Game created",
 	})
+}
+
+func (app *App) CreateBlankLobby(c *gin.Context) {
+	user := c.MustGet("user").(*models.User)
+	theLobby := app.GameOrchestrator.CreateLobby(uuid.MustParse(user.Session.Id), user.Traits.Name.First+"'s Lobby")
+	c.JSON(http.StatusOK, gin.H{"message": "Lobby created", "lobbyID": theLobby.ID})
 }

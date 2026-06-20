@@ -69,9 +69,9 @@ func main() {
 	lobbies := router.Group("/lobbies")
 	lobbies.Use(kratos.AuthMiddleware())
 	{
-		lobbies.GET("/all", gameOrchestrator.GetLobbies())
+		lobbies.GET("/all", routes.GetLobbies)
 		lobbies.GET("/available/:limit/:offset", routes.GetOpenGames)
-		lobbies.POST("/create", gameOrchestrator.CreateLobby())
+		lobbies.POST("/create", routes.CreateBlankLobby)
 		lobbies.POST("/create/:name/:buyIn/:maxPlayers", routes.CreateLobby)
 	}
 	lobby := router.Group("/lobby")
@@ -80,7 +80,7 @@ func main() {
 		lobby.GET("/:lobbyID", routes.GetLobby)
 	}
 	game := router.Group("/game")
-	game.Use(kratos.AuthMiddleware(), gameOrchestrator.GetGameContext())
+	game.Use(kratos.AuthMiddleware(), middleware.GetGameContext(gameOrchestrator))
 	{
 		game.GET("/state/:gameID", routes.GetGameState)
 		game.GET("/stock-order-book/:gameID", routes.GetGameStockOrderBook)

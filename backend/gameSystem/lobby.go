@@ -12,6 +12,7 @@ import (
 type Lobby struct {
 	ID         uuid.UUID
 	Title      string
+	ownerID    uuid.UUID
 	Owner      string
 	Symbol     string
 	Players    map[uuid.UUID]string
@@ -31,13 +32,14 @@ var sp500Tickers = [10]string{
 	"avgo", "meta", "tsla", "lly",
 }
 
-func NewLobby(lobbyID uuid.UUID, owner string, orchestrator *GameOrchestrator) *Lobby {
+func NewLobby(lobbyID uuid.UUID, ownerID uuid.UUID, ownerUsername string, orchestrator *GameOrchestrator) *Lobby {
 	randInt := rand.IntN(len(sp500Tickers))
 	selectedTicker := sp500Tickers[randInt]
 	theLobby := &Lobby{
 		ID:         lobbyID,
-		Title:      owner,
-		Owner:      owner,
+		Title:      ownerUsername,
+		ownerID:    ownerID,
+		Owner:      ownerUsername,
 		Symbol:     selectedTicker,
 		Players:    make(map[uuid.UUID]string),
 		BuyIn:      0,
