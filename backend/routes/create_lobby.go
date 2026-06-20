@@ -43,6 +43,6 @@ func (app *App) CreateLobby(c *gin.Context) {
 
 func (app *App) CreateBlankLobby(c *gin.Context) {
 	user := c.MustGet("user").(*models.User)
-	theLobby := app.GameOrchestrator.CreateLobby(uuid.MustParse(user.Session.Id), user.Traits.Name.First+"'s Lobby")
+	theLobby := app.GameOrchestrator.CreateLobby(uuid.MustParse(user.Session.Identity.Id), user.Traits.Name.First+"'s Lobby")
 	c.JSON(http.StatusOK, gin.H{"message": "Lobby created", "lobbyID": theLobby.ID})
 }
