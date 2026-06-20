@@ -27,8 +27,8 @@ type Lobby struct {
 }
 
 var sp500Tickers = [10]string{
-	"NVDA", "AAPL", "MSFT", "AMZN", "GOOGL",
-	"AVGO", "META", "TSLA", "BRK.B", "LLY",
+	"nvda", "aapl", "msft", "amzn", "googl",
+	"avgo", "meta", "tsla", "lly",
 }
 
 func NewLobby(lobbyID uuid.UUID, owner string, orchestrator *GameOrchestrator) *Lobby {

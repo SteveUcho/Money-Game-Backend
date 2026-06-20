@@ -16,7 +16,11 @@ type GetLobbyResponsePlayer struct {
 
 type GetLobbyResponse struct {
 	LobbyID      string                   `json:"lobbyID"`
+	Title        string                   `json:"title"`
 	Owner        string                   `json:"owner"`
+	MaxPlayers   int                      `json:"maxPlayers"`
+	Symbol       string                   `json:"symbol"`
+	BuyIn        int                      `json:"buyIn"`
 	Players      []GetLobbyResponsePlayer `json:"players"`
 	PlayersReady []string                 `json:"playersReady"`
 }
@@ -42,7 +46,11 @@ func (app *App) GetLobby(c *gin.Context) {
 	}
 	c.JSON(200, GetLobbyResponse{
 		LobbyID:      lobbyID.String(),
+		Title:        lobby.Title,
 		Owner:        lobby.Owner,
+		MaxPlayers:   lobby.MaxPlayers,
+		Symbol:       lobby.Symbol,
+		BuyIn:        lobby.BuyIn,
 		Players:      players,
 		PlayersReady: []string{},
 	})

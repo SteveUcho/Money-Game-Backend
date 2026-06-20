@@ -30,7 +30,7 @@ func (o *GameOrchestrator) GetLobbies() gin.HandlerFunc {
 		for _, lobby := range lobbies {
 			temp := gin.H{
 				"id":         lobby.ID,
-				"name":       lobby.Title,
+				"title":      lobby.Title,
 				"maxPlayers": lobby.MaxPlayers,
 				"players":    len(lobby.Players),
 			}
