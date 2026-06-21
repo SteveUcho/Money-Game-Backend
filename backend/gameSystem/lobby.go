@@ -114,37 +114,47 @@ func (l *Lobby) addPlayer(client *Client) {
 }
 
 func (l *Lobby) removePlayer(client *Client) {
-	delete(l.Players, client.ID)
 	delete(l.Clients, client)
-
 	close(client.Send)
 
 	if len(l.Clients) == 0 {
 		l.closeLobby()
-	}
-
-	playerLeftBroadcast := SystemAction{
-		Action:   "player_left",
-		PlayerID: client.ID,
-		Username: client.username,
-	}
-	jsonData, err := json.Marshal(playerLeftBroadcast)
-	if err != nil {
 		return
 	}
-	go func() { // without goroutine, it will infinite block
-		l.Broadcast <- ClientBroadcast{
-			Type:     "system",
-			PlayerID: uuid.New(),
-			Username: "System",
-			Data:     jsonData,
+
+	newPlayers := make(map[uuid.UUID]string)
+	for c := range l.Clients {
+		newPlayers[c.ID] = c.username
+	}
+	if len(newPlayers) != len(l.Players) {
+		l.Players = newPlayers
+
+		playerLeftBroadcast := SystemAction{
+			Action:   "player_left",
+			PlayerID: client.ID,
+			Username: client.username,
 		}
-	}()
+		jsonData, err := json.Marshal(playerLeftBroadcast)
+		if err != nil {
+			return
+		}
+		go func() { // without goroutine, it will infinite block
+			l.Broadcast <- ClientBroadcast{
+				Type:     "system",
+				PlayerID: uuid.New(),
+				Username: "System",
+				Data:     jsonData,
+			}
+		}()
+	}
 }
 
 // TODO: close lobby when all players disconnect
 func (l *Lobby) closeLobby() {
 	l.orchestrator.unregisterLobby <- l.ID
+	for client := range l.Clients {
+		close(client.Send)
+	}
 	if l.Game != nil {
 		l.Game.EndGame()
 	}
