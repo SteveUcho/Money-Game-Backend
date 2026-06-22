@@ -149,7 +149,6 @@ func (l *Lobby) removePlayer(client *Client) {
 	}
 }
 
-// TODO: close lobby when all players disconnect
 func (l *Lobby) closeLobby() {
 	l.orchestrator.unregisterLobby <- l.ID
 	for client := range l.Clients {
