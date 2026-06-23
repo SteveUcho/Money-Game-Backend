@@ -18,7 +18,7 @@ type Lobby struct {
 	Players    map[uuid.UUID]string
 	BuyIn      int
 	MaxPlayers int
-	Game       *GameState
+	Game       *Game
 
 	Clients      map[*Client]bool
 	Join         chan *Client
@@ -76,7 +76,7 @@ func (l *Lobby) Run() {
 	}
 }
 
-func (l *Lobby) StartGame(gameID uuid.UUID) *GameState {
+func (l *Lobby) StartGame(gameID uuid.UUID) *Game {
 	if l.Game == nil {
 		l.Game = NewGame(gameID, l.Symbol, slices.Collect(maps.Keys(l.Players)))
 		l.Game.startGame()

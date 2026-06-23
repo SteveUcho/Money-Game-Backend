@@ -12,7 +12,7 @@ type RegisterGame struct {
 }
 
 type GameOrchestrator struct {
-	games   map[uuid.UUID]*GameState
+	games   map[uuid.UUID]*Game
 	lobbies map[uuid.UUID]*Lobby
 
 	registerLobby   chan *Lobby
@@ -38,7 +38,7 @@ func (o *GameOrchestrator) Run() {
 
 func NewGameOrchestrator() *GameOrchestrator {
 	gameSystem := &GameOrchestrator{
-		games:   make(map[uuid.UUID]*GameState),
+		games:   make(map[uuid.UUID]*Game),
 		lobbies: make(map[uuid.UUID]*Lobby),
 
 		registerLobby:   make(chan *Lobby),
@@ -57,14 +57,14 @@ func (o *GameOrchestrator) CreateLobby(ownerID uuid.UUID, ownerUsername string) 
 	return lobby
 }
 
-func (o *GameOrchestrator) createGame(lobbyID uuid.UUID) *GameState {
+func (o *GameOrchestrator) createGame(lobbyID uuid.UUID) *Game {
 	gameID := uuid.New()
 
 	game := o.lobbies[lobbyID].StartGame(gameID)
 	return game
 }
 
-func (o *GameOrchestrator) GetGame(gameID uuid.UUID) (*GameState, bool) {
+func (o *GameOrchestrator) GetGame(gameID uuid.UUID) (*Game, bool) {
 	game, exists := o.games[gameID]
 	return game, exists
 }

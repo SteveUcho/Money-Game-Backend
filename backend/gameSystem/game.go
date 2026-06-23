@@ -10,7 +10,7 @@ import (
 	"steveucho.com/packages/backend/wsHub"
 )
 
-type GameState struct {
+type Game struct {
 	ID             uuid.UUID
 	Symbol         string
 	ShareFloat     int
@@ -26,11 +26,11 @@ type GameState struct {
 	OptionOrderBook map[uuid.UUID]*OptionSellOrderEntry // order id -> order
 
 	BroadcastHub *wsHub.Hub
-	lobby        *Lobby
+	Lobby        *Lobby
 }
 
-func NewGame(ID uuid.UUID, symbol string, players []uuid.UUID) *GameState {
-	return &GameState{
+func NewGame(ID uuid.UUID, symbol string, players []uuid.UUID) *Game {
+	return &Game{
 		ID:             ID,
 		Symbol:         symbol,
 		ShareFloat:     1000,
@@ -47,7 +47,7 @@ func NewGame(ID uuid.UUID, symbol string, players []uuid.UUID) *GameState {
 	}
 }
 
-func (g *GameState) stockIpoAllocation() {
+func (g *Game) stockIpoAllocation() {
 	var remainingShares = g.ShareFloat
 	for _, player := range g.Players {
 		holdings, exists := g.PlayerHoldings[player]
@@ -62,11 +62,11 @@ func (g *GameState) stockIpoAllocation() {
 	}
 }
 
-func (g *GameState) startGame() {
+func (g *Game) startGame() {
 	g.stockIpoAllocation()
 }
 
-func (g *GameState) validateStockSellOrder(playerID uuid.UUID, order []StockSellOrderEntry) bool {
+func (g *Game) validateStockSellOrder(playerID uuid.UUID, order []StockSellOrderEntry) bool {
 	var totalQuantity int
 	for _, o := range order {
 		totalQuantity += o.Quantity
@@ -74,12 +74,12 @@ func (g *GameState) validateStockSellOrder(playerID uuid.UUID, order []StockSell
 	return totalQuantity <= g.PlayerHoldings[playerID].TotalSharesHeld
 }
 
-func (g *GameState) validateStockBuyOrder(playerID uuid.UUID, orderID uuid.UUID) bool {
+func (g *Game) validateStockBuyOrder(playerID uuid.UUID, orderID uuid.UUID) bool {
 	// TODO: Implement stock buy order validation
 	return true
 }
 
-func (g *GameState) resolveStockSellOrder(orderID uuid.UUID) {
+func (g *Game) resolveStockSellOrder(orderID uuid.UUID) {
 	order, ok := g.StockOrderBook[orderID]
 	if !ok {
 		return
@@ -113,7 +113,7 @@ func (g *GameState) resolveStockSellOrder(orderID uuid.UUID) {
 	g.PlayerHoldings[order.Player].TotalSharesHeld -= order.Quantity
 }
 
-func (g *GameState) SubmitTurn(submission TurnSubmission) bool {
+func (g *Game) SubmitTurn(submission TurnSubmission) bool {
 	if !g.validateStockSellOrder(submission.PlayerID, submission.StockSellOrders) {
 		return false
 	}
@@ -131,11 +131,11 @@ func (g *GameState) SubmitTurn(submission TurnSubmission) bool {
 	return true
 }
 
-func (g *GameState) GetStockOrderBook() []*StockSellOrderEntry {
+func (g *Game) GetStockOrderBook() []*StockSellOrderEntry {
 	return slices.Collect(maps.Values(g.StockOrderBook))
 }
 
-func (g *GameState) EndGame() {
-	g.lobby.orchestrator.unregisterGame <- g.ID
-	g.lobby.Game = nil
+func (g *Game) EndGame() {
+	g.Lobby.orchestrator.unregisterGame <- g.ID
+	g.Lobby.Game = nil
 }

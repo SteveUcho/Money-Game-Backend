@@ -16,12 +16,12 @@ func GetGameContext(o *gameSystem.GameOrchestrator) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req gameRequest
 		if err := c.ShouldBindUri(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		game, exists := o.GetGame(uuid.MustParse(req.GameID))
 		if !exists {
-			c.JSON(http.StatusNotFound, gin.H{"error": "game not found"})
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "game not found"})
 			return
 		}
 		c.Set("game", game)

@@ -78,7 +78,9 @@ func main() {
 	lobby.Use(kratos.AuthMiddleware(), middleware.GetLobbyContext(gameOrchestrator))
 	{
 		lobby.GET("/:lobbyID", routes.GetLobby)
-		lobby.PUT("/:lobbyID", routes.UpdateLobby)
+
+		// owner routes
+		lobby.PUT("/:lobbyID", middleware.ValidateLobbyOwner, routes.UpdateLobby)
 	}
 	game := router.Group("/game")
 	game.Use(kratos.AuthMiddleware(), middleware.GetGameContext(gameOrchestrator))

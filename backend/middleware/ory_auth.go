@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	ory "github.com/ory/kratos-client-go"
 	"steveucho.com/packages/backend/models"
 )
@@ -72,6 +73,7 @@ func (k *kratosMiddleware) AuthMiddleware() gin.HandlerFunc {
 		}
 
 		c.Set("user", &models.User{
+			ID:      uuid.MustParse(session.Identity.Id),
 			Session: session,
 			Traits:  *traits,
 		})

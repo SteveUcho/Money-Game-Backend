@@ -1,8 +1,12 @@
 package models
 
-import ory "github.com/ory/kratos-client-go"
+import (
+	"github.com/google/uuid"
+	ory "github.com/ory/kratos-client-go"
+)
 
 type User struct {
+	ID      uuid.UUID
 	Session *ory.Session
 	Traits  IdentityTraits
 }

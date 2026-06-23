@@ -16,12 +16,12 @@ func GetLobbyContext(o *gameSystem.GameOrchestrator) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req getLobbyRequest
 		if err := c.ShouldBindUri(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		lobby, exists := o.GetLobby(uuid.MustParse(req.LobbyID))
 		if !exists {
-			c.JSON(http.StatusNotFound, gin.H{"error": "lobby not found"})
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "lobby not found"})
 			return
 		}
 		c.Set("lobby", lobby)

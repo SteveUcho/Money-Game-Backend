@@ -12,7 +12,7 @@ type GetGameStockOrderBookParams struct {
 }
 
 func (app *App) GetGameStockOrderBook(c *gin.Context) {
-	game := c.MustGet("game").(*gameSystem.GameState)
+	game := c.MustGet("game").(*gameSystem.Game)
 	var params GetGameStockOrderBookParams
 	if err := c.ShouldBindUri(&params); err != nil {
 		c.JSON(400, gin.H{
