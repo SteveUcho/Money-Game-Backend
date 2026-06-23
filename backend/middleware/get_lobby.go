@@ -8,13 +8,13 @@ import (
 	"steveucho.com/packages/backend/gameSystem"
 )
 
-type getWsLobbyRequest struct {
+type getLobbyRequest struct {
 	LobbyID string `uri:"lobbyID" binding:"required,uuid"`
 }
 
 func GetLobbyContext(o *gameSystem.GameOrchestrator) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req getWsLobbyRequest
+		var req getLobbyRequest
 		if err := c.ShouldBindUri(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return

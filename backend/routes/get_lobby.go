@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
+	"steveucho.com/packages/backend/gameSystem"
 )
 
 type GetLobbyRequest struct {
@@ -27,17 +27,7 @@ type GetLobbyResponse struct {
 }
 
 func (app *App) GetLobby(c *gin.Context) {
-	var req GetLobbyRequest
-	if err := c.ShouldBindUri(&req); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid lobby ID"})
-		return
-	}
-	lobbyID := uuid.MustParse(req.LobbyID)
-	lobby, exists := app.GameOrchestrator.GetLobby(lobbyID)
-	if !exists {
-		c.JSON(404, gin.H{"error": "Lobby not found"})
-		return
-	}
+	lobby := c.MustGet("lobby").(*gameSystem.Lobby)
 	players := []GetLobbyResponsePlayer{}
 	for id, username := range lobby.Players {
 		players = append(players, GetLobbyResponsePlayer{
@@ -46,7 +36,7 @@ func (app *App) GetLobby(c *gin.Context) {
 		})
 	}
 	c.JSON(200, GetLobbyResponse{
-		LobbyID:      lobbyID.String(),
+		LobbyID:      lobby.ID.String(),
 		Title:        lobby.Title,
 		OwnerID:      lobby.OwnerID.String(),
 		Owner:        lobby.Owner,

@@ -75,9 +75,10 @@ func main() {
 		lobbies.POST("/create/:name/:buyIn/:maxPlayers", routes.CreateLobby)
 	}
 	lobby := router.Group("/lobby")
-	lobby.Use(kratos.AuthMiddleware())
+	lobby.Use(kratos.AuthMiddleware(), middleware.GetLobbyContext(gameOrchestrator))
 	{
 		lobby.GET("/:lobbyID", routes.GetLobby)
+		lobby.PUT("/:lobbyID", routes.UpdateLobby)
 	}
 	game := router.Group("/game")
 	game.Use(kratos.AuthMiddleware(), middleware.GetGameContext(gameOrchestrator))
