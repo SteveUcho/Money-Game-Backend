@@ -20,7 +20,7 @@ type Lobby struct {
 	MaxPlayers int
 	Game       *Game
 
-	Clients      map[*Client]bool
+	Clients      map[*Client]uuid.UUID
 	Join         chan *Client
 	Leave        chan *Client
 	Broadcast    chan ClientBroadcast
@@ -46,7 +46,7 @@ func NewLobby(lobbyID uuid.UUID, ownerID uuid.UUID, ownerUsername string, orches
 		MaxPlayers: 4,
 		Game:       nil,
 
-		Clients:      make(map[*Client]bool),
+		Clients:      make(map[*Client]uuid.UUID),
 		Join:         make(chan *Client),
 		Leave:        make(chan *Client),
 		Broadcast:    make(chan ClientBroadcast),
@@ -62,14 +62,13 @@ func (l *Lobby) Run() {
 		case client := <-l.Join:
 			l.addPlayer(client)
 		case client := <-l.Leave:
-			l.removePlayer(client)
+			l.removeClient(client)
 		case broadcast := <-l.Broadcast:
 			for client := range l.Clients {
 				select {
 				case client.Send <- broadcast:
 				default:
-					close(client.Send)
-					delete(l.Clients, client)
+					l.removeClient(client)
 				}
 			}
 		}
@@ -92,7 +91,7 @@ type SystemAction struct {
 
 func (l *Lobby) addPlayer(client *Client) {
 	l.Players[client.ID] = client.username
-	l.Clients[client] = true
+	l.Clients[client] = client.ID
 
 	playerJoinBroadcast := SystemAction{
 		Action:   "player_joined",
@@ -105,15 +104,32 @@ func (l *Lobby) addPlayer(client *Client) {
 	}
 	go func() { // without goroutine, it will infinite block
 		l.Broadcast <- ClientBroadcast{
-			Type:     "system",
-			PlayerID: uuid.New(),
-			Username: "System",
-			Data:     jsonData,
+			Type:      "system",
+			MessageID: uuid.New(),
+			PlayerID:  uuid.New(),
+			Username:  "System",
+			Data:      jsonData,
 		}
 	}()
 }
 
-func (l *Lobby) removePlayer(client *Client) {
+// player may have multiple connections, so we need to remove all of them
+func (l *Lobby) RemovePlayer(playerID uuid.UUID) {
+	clientsToDelete := make([]*Client, 0)
+	for client, id := range l.Clients {
+		if id == playerID {
+			clientsToDelete = append(clientsToDelete, client)
+		}
+	}
+	for _, client := range clientsToDelete {
+		l.Leave <- client
+	}
+}
+
+func (l *Lobby) removeClient(client *Client) {
+	if _, exists := l.Clients[client]; !exists {
+		return
+	}
 	delete(l.Clients, client)
 	close(client.Send)
 
@@ -128,6 +144,14 @@ func (l *Lobby) removePlayer(client *Client) {
 	}
 	if len(newPlayers) != len(l.Players) {
 		l.Players = newPlayers
+		if client.ID == l.OwnerID {
+			// pick a new owner
+			for c := range l.Clients {
+				l.OwnerID = c.ID
+				l.Owner = c.username
+				break
+			}
+		}
 
 		playerLeftBroadcast := SystemAction{
 			Action:   "player_left",
@@ -140,10 +164,11 @@ func (l *Lobby) removePlayer(client *Client) {
 		}
 		go func() { // without goroutine, it will infinite block
 			l.Broadcast <- ClientBroadcast{
-				Type:     "system",
-				PlayerID: uuid.New(),
-				Username: "System",
-				Data:     jsonData,
+				Type:      "system",
+				MessageID: uuid.New(),
+				PlayerID:  uuid.New(),
+				Username:  "System",
+				Data:      jsonData,
 			}
 		}()
 	}

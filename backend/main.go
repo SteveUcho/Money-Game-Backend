@@ -74,20 +74,21 @@ func main() {
 		lobbies.POST("/create", routes.CreateBlankLobby)
 		lobbies.POST("/create/:name/:buyIn/:maxPlayers", routes.CreateLobby)
 	}
-	lobby := router.Group("/lobby")
+	lobby := router.Group("/lobby/:lobbyID")
 	lobby.Use(kratos.AuthMiddleware(), middleware.GetLobbyContext(gameOrchestrator))
 	{
-		lobby.GET("/:lobbyID", routes.GetLobby)
+		lobby.GET("", routes.GetLobby)
 
 		// owner routes
-		lobby.PUT("/:lobbyID", middleware.ValidateLobbyOwner, routes.UpdateLobby)
+		lobby.PUT("", middleware.ValidateLobbyOwner, routes.UpdateLobby)
+		lobby.DELETE("/remove-player/:playerID", middleware.ValidateLobbyOwner, routes.RemovePlayer)
 	}
-	game := router.Group("/game")
+	game := router.Group("/game/:gameID")
 	game.Use(kratos.AuthMiddleware(), middleware.GetGameContext(gameOrchestrator))
 	{
-		game.GET("/state/:gameID", routes.GetGameState)
-		game.GET("/stock-order-book/:gameID", routes.GetGameStockOrderBook)
-		game.GET("/stock-chart-points/:gameID", routes.GetStockChartPoints)
+		game.GET("/state", routes.GetGameState)
+		game.GET("/stock-order-book", routes.GetGameStockOrderBook)
+		game.GET("/stock-chart-points", routes.GetStockChartPoints)
 	}
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
