@@ -2,6 +2,7 @@ package gameSystem
 
 import (
 	"encoding/json"
+	"fmt"
 	"maps"
 	"math/rand/v2"
 	"slices"
@@ -89,14 +90,16 @@ type SystemAction struct {
 	Username string    `json:"username"`
 }
 
+type ChatMessage struct {
+	Message string `json:"message"`
+}
+
 func (l *Lobby) addPlayer(client *Client) {
 	l.Players[client.ID] = client.username
 	l.Clients[client] = client.ID
 
-	playerJoinBroadcast := SystemAction{
-		Action:   "player_joined",
-		PlayerID: client.ID,
-		Username: client.username,
+	playerJoinBroadcast := ChatMessage{
+		Message: fmt.Sprintf("%s joined the lobby", client.username),
 	}
 	jsonData, err := json.Marshal(playerJoinBroadcast)
 	if err != nil {
@@ -104,7 +107,7 @@ func (l *Lobby) addPlayer(client *Client) {
 	}
 	go func() { // without goroutine, it will infinite block
 		l.Broadcast <- ClientBroadcast{
-			Type:      "system",
+			Type:      "chat",
 			MessageID: uuid.New(),
 			PlayerID:  uuid.New(),
 			Username:  "System",
@@ -153,10 +156,8 @@ func (l *Lobby) removeClient(client *Client) {
 			}
 		}
 
-		playerLeftBroadcast := SystemAction{
-			Action:   "player_left",
-			PlayerID: client.ID,
-			Username: client.username,
+		playerLeftBroadcast := ChatMessage{
+			Message: fmt.Sprintf("%s left the lobby", client.username),
 		}
 		jsonData, err := json.Marshal(playerLeftBroadcast)
 		if err != nil {
@@ -164,7 +165,7 @@ func (l *Lobby) removeClient(client *Client) {
 		}
 		go func() { // without goroutine, it will infinite block
 			l.Broadcast <- ClientBroadcast{
-				Type:      "system",
+				Type:      "chat",
 				MessageID: uuid.New(),
 				PlayerID:  uuid.New(),
 				Username:  "System",
