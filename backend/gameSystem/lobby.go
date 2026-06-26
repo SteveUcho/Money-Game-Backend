@@ -175,6 +175,41 @@ func (l *Lobby) removeClient(client *Client) {
 	}
 }
 
+func (l *Lobby) UpdateLeader(playerID uuid.UUID) {
+	l.OwnerID = playerID
+	l.Owner = l.Players[playerID]
+
+	newChatBroadcast := ChatMessage{
+		Message: fmt.Sprintf("%s is now the lobby leader", l.Owner),
+	}
+	jsonData, err := json.Marshal(newChatBroadcast)
+	if err != nil {
+		return
+	}
+	l.Broadcast <- ClientBroadcast{
+		Type:      "chat",
+		MessageID: uuid.New(),
+		PlayerID:  uuid.New(),
+		Username:  "System",
+		Data:      jsonData,
+	}
+	newMutationBroadcast := map[string]string{
+		"owner":   l.Owner,
+		"ownerID": l.OwnerID.String(),
+	}
+	jsonData, err = json.Marshal(newMutationBroadcast)
+	if err != nil {
+		return
+	}
+	l.Broadcast <- ClientBroadcast{
+		Type:      "lobby.update",
+		MessageID: uuid.New(),
+		PlayerID:  uuid.New(),
+		Username:  "System",
+		Data:      jsonData,
+	}
+}
+
 func (l *Lobby) closeLobby() {
 	l.orchestrator.unregisterLobby <- l.ID
 	for client := range l.Clients {

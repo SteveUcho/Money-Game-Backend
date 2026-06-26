@@ -81,6 +81,7 @@ func main() {
 
 		// owner routes
 		lobby.PUT("", middleware.ValidateLobbyOwner, routes.UpdateLobby)
+		lobby.PUT("/promote-player/:playerID", middleware.ValidateLobbyOwner, routes.UpdateLobbyLeader)
 		lobby.DELETE("/remove-player/:playerID", middleware.ValidateLobbyOwner, routes.RemovePlayer)
 	}
 	game := router.Group("/game/:gameID")
