@@ -95,25 +95,60 @@ type ChatMessage struct {
 }
 
 func (l *Lobby) addPlayer(client *Client) {
+	oldPlayerCount := len(l.Players)
 	l.Players[client.ID] = client.username
+	newPlayerCount := len(l.Players)
 	l.Clients[client] = client.ID
 
-	playerJoinBroadcast := ChatMessage{
-		Message: fmt.Sprintf("%s joined the lobby", client.username),
+	if oldPlayerCount != newPlayerCount {
+		go func() { // without goroutine, it will infinite block
+			// player joined
+			playerJoinBroadcast := ChatMessage{
+				Message: fmt.Sprintf("%s joined the lobby", client.username),
+			}
+			jsonData, err := json.Marshal(playerJoinBroadcast)
+			if err != nil {
+				return
+			}
+			l.Broadcast <- ClientBroadcast{
+				Type:      "chat",
+				MessageID: uuid.New(),
+				PlayerID:  uuid.New(),
+				Username:  "System",
+				Data:      jsonData,
+			}
+			newMutationBroadcast := map[string][]GetLobbyResponsePlayer{
+				"players": l.GetPlayers(),
+			}
+			jsonData, err = json.Marshal(newMutationBroadcast)
+			if err != nil {
+				return
+			}
+			l.Broadcast <- ClientBroadcast{
+				Type:      "lobby.update",
+				MessageID: uuid.New(),
+				PlayerID:  uuid.New(),
+				Username:  "System",
+				Data:      jsonData,
+			}
+		}()
 	}
-	jsonData, err := json.Marshal(playerJoinBroadcast)
-	if err != nil {
-		return
+}
+
+type GetLobbyResponsePlayer struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func (l *Lobby) GetPlayers() []GetLobbyResponsePlayer {
+	players := []GetLobbyResponsePlayer{}
+	for id, username := range l.Players {
+		players = append(players, GetLobbyResponsePlayer{
+			ID:   id.String(),
+			Name: username,
+		})
 	}
-	go func() { // without goroutine, it will infinite block
-		l.Broadcast <- ClientBroadcast{
-			Type:      "chat",
-			MessageID: uuid.New(),
-			PlayerID:  uuid.New(),
-			Username:  "System",
-			Data:      jsonData,
-		}
-	}()
+	return players
 }
 
 // player may have multiple connections, so we need to remove all of them
@@ -166,6 +201,21 @@ func (l *Lobby) removeClient(client *Client) {
 		go func() { // without goroutine, it will infinite block
 			l.Broadcast <- ClientBroadcast{
 				Type:      "chat",
+				MessageID: uuid.New(),
+				PlayerID:  uuid.New(),
+				Username:  "System",
+				Data:      jsonData,
+			}
+
+			newMutationBroadcast := map[string][]GetLobbyResponsePlayer{
+				"players": l.GetPlayers(),
+			}
+			jsonData, err := json.Marshal(newMutationBroadcast)
+			if err != nil {
+				return
+			}
+			l.Broadcast <- ClientBroadcast{
+				Type:      "lobby.update",
 				MessageID: uuid.New(),
 				PlayerID:  uuid.New(),
 				Username:  "System",
